@@ -165,6 +165,7 @@ class TelemetryPacket(ctypes.LittleEndianStructure):
 class SimplifiedTelemetryPacket(ctypes.LittleEndianStructure):
     _pack_ = 1
     _fields_ = [
+        ("timeStamp", ctypes.c_float),
         ("idle_rpm", ctypes.c_float),
         ("max_rpm", ctypes.c_float),
 
@@ -197,6 +198,7 @@ class SimplifiedTelemetryPacket(ctypes.LittleEndianStructure):
 def convert_to_simplified(full_packet):
     """Convert a full TelemetryPacket to a SimplifiedTelemetryPacket."""
     simplified = SimplifiedTelemetryPacket()
+    simplified.timeStamp = full_packet.timeStamp
     simplified.idle_rpm = full_packet.idle_rpm
     simplified.max_rpm = full_packet.max_rpm
     simplified.gear = full_packet.gear - 1 # 0 is reverse, 1 is neutral, 2 is first gear

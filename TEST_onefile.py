@@ -1,4 +1,4 @@
-import simhub_parser, udp_interface, os, csv_parser
+import simhub_parser, udp_interface, os, csv_parser, graphing_util
 
 file_path = "./hex_beamng.txt"
 

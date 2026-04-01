@@ -17,6 +17,7 @@ def save_csv():
         writer.writerow(simhub_parser.send_headers())
         writer.writerows(csv_rows)
     print(f"CSV saved to {file_path}")
+    return file_path
 
 def new_csv():
     global csv_rows
