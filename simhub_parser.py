@@ -184,15 +184,11 @@ class SimplifiedTelemetryPacket(ctypes.LittleEndianStructure):
         ("accY", ctypes.c_float),
         ("pitchPos", ctypes.c_float),
 
-        ("wheel_speed_fl", ctypes.c_float),
-        ("wheel_speed_fr", ctypes.c_float),
-        ("wheel_speed_rl", ctypes.c_float),
-        ("wheel_speed_rr", ctypes.c_float),
+        ("wheel_speed_front", ctypes.c_float),
+        ("wheel_speed_rear", ctypes.c_float),
 
-        ("suspension_position_fl", ctypes.c_float),
-        ("suspension_position_fr", ctypes.c_float),
-        ("suspension_position_rl", ctypes.c_float),
-        ("suspension_position_rr", ctypes.c_float),
+        ("suspension_position_front", ctypes.c_float),
+        ("suspension_position_rear", ctypes.c_float),
     ]
 
 def convert_to_simplified(full_packet):
@@ -213,14 +209,10 @@ def convert_to_simplified(full_packet):
     simplified.input_steeringPercent = full_packet.input_steeringPercent
     simplified.accY = full_packet.accY / 9.81  # Normalize to g-force
     simplified.pitchPos = (full_packet.pitchPos * (180.0 / 3.14159265))  # Convert radians to degrees
-    simplified.wheel_speed_fl = full_packet.wheel_speed_fl * 2.23694  # Convert m/s to mph
-    simplified.wheel_speed_fr = full_packet.wheel_speed_fr * 2.23694  # Convert m/s to mph
-    simplified.wheel_speed_rl = full_packet.wheel_speed_rl * 2.23694  # Convert m/s to mph
-    simplified.wheel_speed_rr = full_packet.wheel_speed_rr * 2.23694  # Convert m/s to mph
-    simplified.suspension_position_fl = full_packet.suspension_position_fl
-    simplified.suspension_position_fr = full_packet.suspension_position_fr
-    simplified.suspension_position_rl = full_packet.suspension_position_rl
-    simplified.suspension_position_rr = full_packet.suspension_position_rr
+    simplified.wheel_speed_front = (full_packet.wheel_speed_fl + full_packet.wheel_speed_fr) * 1.11847  # Convert m/s to mph
+    simplified.wheel_speed_rear = (full_packet.wheel_speed_rl + full_packet.wheel_speed_rr) * 1.11847  # Convert m/s to mph
+    simplified.suspension_position_front = (full_packet.suspension_position_fl + full_packet.suspension_position_fr) / 2.0
+    simplified.suspension_position_rear = (full_packet.suspension_position_rl + full_packet.suspension_position_rr) / 2.0
     return simplified
 
 def noprint_shift(data, num_bytes):
