@@ -1,5 +1,8 @@
 /__pycache__
 /output_logs
 /testfiles
-traction_control.py
+/build
+
 test.py
+
+main.spec
