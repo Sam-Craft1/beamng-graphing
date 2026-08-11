@@ -1,4 +1,4 @@
-import csv, source.simhub_parser as simhub_parser, os, time
+import csv, simhub_parser, os, time
 
 csv_rows = []
 

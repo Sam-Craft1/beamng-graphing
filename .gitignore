@@ -1,8 +1,10 @@
-/__pycache__
+/source/__pycache__
 /output_logs
-/testfiles
+/test*
 /build
 
 test.py
 
 main.spec
+
+settings.json

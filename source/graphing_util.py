@@ -1,4 +1,4 @@
-import csv, ctypes, matplotlib.pyplot as plt, tkinter as tk, os, source.main as main
+import csv, ctypes, matplotlib.pyplot as plt, tkinter as tk, os, main
 from tkinter import filedialog
 from pathlib import Path
 

@@ -1,4 +1,4 @@
-import source.simhub_parser as simhub_parser, source.udp_interface as udp_interface, os, source.csv_parser as csv_parser, time, source.graphing_util as graphing_util, tkinter as tk, sys
+import simhub_parser, udp_interface, os, csv_parser, time, graphing_util, tkinter as tk, sys
 
 
 def graph_helper(sock, root=None, file_path=None, previous_pass=None):
