@@ -1,6 +1,5 @@
-import csv, ctypes, matplotlib.pyplot as plt, tkinter as tk, os, main
-from tkinter import filedialog
-from pathlib import Path
+import csv, matplotlib.pyplot as plt
+
 
 def start_index(data):
     index = 0
@@ -27,7 +26,7 @@ def read_csv_data(file_path):
         
     return data
 
-def graph_telemetry_data(data, selections):
+def graph_single_data(data, selections):
 
     fig, axs= plt.subplots(nrows=3, ncols=1, figsize=(12, 8), sharex=True)
     
@@ -101,36 +100,35 @@ def graph_telemetry_data(data, selections):
     suspensionAxis.legend(loc='upper right')
     suspensionAxis.set_facecolor('black')
 
-
-    if not selections['RPM'].get():
+    if not selections & (1 << 0):
         rpmAxis.lines[0].set_visible(False)
         rpmAxis.tick_params(axis='y', labelcolor='black')
-    if not selections['Wheel Speed'].get():
+    if not selections & (1 << 1):
         for line in wheelSpeedAxis.lines:
             line.set_visible(False)
         wheelSpeedAxis.tick_params(axis='y', labelcolor='black')
-    if not selections['Suspension Position'].get():
+    if not selections & (1 << 2):
         for line in suspensionAxis.lines:
             line.set_visible(False)
         suspensionAxis.tick_params(axis='y', labelcolor='black')
-    if not selections['Pitch'].get():
+    if not selections & (1 << 3):
         pitchAxis.lines[0].set_visible(False)
         pitchAxis.tick_params(axis='y', labelcolor='black')
-    if not selections['Gear'].get():
+    if not selections & (1 << 4):
         gearAxis.lines[0].set_visible(False)
         gearAxis.tick_params(axis='y', labelcolor='black')
-    if not selections['Gas Pedal'].get():
+    if not selections & (1 << 5):
         gasAxis.lines[0].set_visible(False)
         gasAxis.tick_params(axis='y', labelcolor='black')
-    if not selections['Clutch Pedal'].get():
+    if not selections & (1 << 6):
         clutchAxis.lines[0].set_visible(False)
         clutchAxis.tick_params(axis='y', labelcolor='black')
-
 
     fig.set_facecolor('black')
 
     fig.tight_layout()
-    plt.show()
+
+    return fig
 
 def graph_comparison_data(data1, data2, selections):
     # Similar implementation as graph_telemetry_data but for two datasets
@@ -275,31 +273,31 @@ def graph_comparison_data(data1, data2, selections):
     suspensionAxis.legend(loc='upper right')
     suspensionAxis.set_facecolor('black')
 
-    if not selections['RPM'].get():
+    if not selections & (1 << 0):
         for line in rpmAxis.lines:
             line.set_visible(False)
         rpmAxis.tick_params(axis='y', labelcolor='black')
-    if not selections['Wheel Speed'].get():
+    if not selections & (1 << 1):
         for line in wheelSpeedAxis.lines:
             line.set_visible(False)
         wheelSpeedAxis.tick_params(axis='y', labelcolor='black')
-    if not selections['Suspension Position'].get():
+    if not selections & (1 << 2):
         for line in suspensionAxis.lines:
             line.set_visible(False)
         suspensionAxis.tick_params(axis='y', labelcolor='black')
-    if not selections['Pitch'].get():
+    if not selections & (1 << 3):
         for line in pitchAxis.lines:
             line.set_visible(False)
         pitchAxis.tick_params(axis='y', labelcolor='black')
-    if not selections['Gear'].get():
+    if not selections & (1 << 4):
         for line in gearAxis.lines:
             line.set_visible(False)
         gearAxis.tick_params(axis='y', labelcolor='black')
-    if not selections['Gas Pedal'].get():
+    if not selections & (1 << 5):
         for line in gasAxis.lines:
             line.set_visible(False)
         gasAxis.tick_params(axis='y', labelcolor='black')
-    if not selections['Clutch Pedal'].get():
+    if not selections & (1 << 6):
         for line in clutchAxis.lines:
             line.set_visible(False)
         clutchAxis.tick_params(axis='y', labelcolor='black')
@@ -307,89 +305,9 @@ def graph_comparison_data(data1, data2, selections):
     fig.set_facecolor('black')
 
     fig.tight_layout()
-    plt.show()
 
-def graphing_single_gui(recent_pass, prev_pass):
+    return fig
 
-    root = tk.Tk()
-
-    def browse_file():
-        file_path = tk.filedialog.askopenfilename(initialdir="./output_logs", filetypes=[("CSV files", "*.csv")]) # type: ignore
-        file_label.config(text=file_path)
-        return file_path
-    
-    root.title("Telemetry Comparison")
-    root.minsize(400, 300)
-
-    file_label = tk.Label(root, text=(recent_pass if recent_pass else "None"))
-    file_label.pack(pady=5)
-    tk.Button(root, text="Browse", command=lambda: browse_file()).pack(pady=5)
-    tk.Label(root, text="Select Data to Graph:").pack(pady=10)
-    selections = {
-        "RPM": tk.BooleanVar(value=True),
-        "Wheel Speed": tk.BooleanVar(value=True),
-        "Suspension Position": tk.BooleanVar(value=True),
-        "Pitch": tk.BooleanVar(value=True),
-        "Gear": tk.BooleanVar(value=True),
-        "Gas Pedal": tk.BooleanVar(value=True),
-        "Clutch Pedal": tk.BooleanVar(value=False)
-    }
-    for label, var in selections.items():
-        tk.Checkbutton(root, text=label, variable=var).pack(anchor='n')
-
-    tk.Button(root, text="Switch to Compare Graph", command=lambda: single_to_compare(root, file_label.cget("text"), prev_pass)).pack(pady=5)
-    tk.Button(root, text="Graph", command=lambda: graph_telemetry_data(read_csv_data(file_label.cget("text")), selections)).pack(pady=20)
-    tk.Button(root, text="Exit", command=lambda: return_to_main(root, recent_pass)).pack(pady=5)
-    root.mainloop()
-
-def graph_comparison_gui(recent_pass, prev_pass):
-
-    root = tk.Tk()
-
-    root.title("Telemetry Comparison")
-    root.minsize(400, 300)
-
-    def browse_file(file_label):
-        file_path = tk.filedialog.askopenfilename(initialdir="./output_logs", filetypes=[("CSV files", "*.csv")]) # type: ignore
-        file_label.config(text=file_path)
-        return file_path
-
-    file_label1 = tk.Label(root, text=recent_pass if recent_pass else "Main Pass: None")
-    file_label1.pack(pady=5)
-    tk.Button(root, text="Browse Main Pass", command=lambda: browse_file(file_label1)).pack(pady=5)
-    file_label2 = tk.Label(root, text=("Comparison Pass: None"))
-    file_label2.pack(pady=5)
-    tk.Button(root, text="Browse Comparison Pass", command=lambda: browse_file(file_label2)).pack(pady=5)
-    tk.Label(root, text="Select Data to Graph:").pack(pady=10)
-    selections = {
-        "RPM": tk.BooleanVar(value=True),
-        "Wheel Speed": tk.BooleanVar(value=True),
-        "Suspension Position": tk.BooleanVar(value=True),
-        "Pitch": tk.BooleanVar(value=True),
-        "Gear": tk.BooleanVar(value=True),
-        "Gas Pedal": tk.BooleanVar(value=True),
-        "Clutch Pedal": tk.BooleanVar(value=False)
-    }
-    for label, var in selections.items():
-        tk.Checkbutton(root, text=label, variable=var).pack(anchor='n')
-
-    tk.Button(root, text="Switch to Single Graph", command=lambda: compare_to_single(root, file_label1.cget("text"), file_label2.cget("text"))).pack(pady=5)
-    tk.Button(root, text="Graph", command=lambda: graph_comparison_data(read_csv_data(file_label1.cget("text")), read_csv_data(file_label2.cget("text")), selections)).pack(pady=20)
-    tk.Button(root, text="Exit", command=lambda: return_to_main(root, recent_pass)).pack(pady=5)
-    root.mainloop()
-
-def return_to_main(root, recent_pass):
-    root.destroy()
-    plt.close('all')
-    main.main(recent_pass)  # Call main with the recent_pass argument
-
-def single_to_compare(root, recent_pass, prev_pass):
-    root.destroy()  # Hide the main window
-    graph_comparison_gui(recent_pass, prev_pass)
-
-def compare_to_single(root, recent_pass, prev_pass):
-    root.destroy()  # Hide the main window
-    graphing_single_gui(recent_pass, prev_pass)
 
 
 

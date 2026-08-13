@@ -1,61 +1,281 @@
-import simhub_parser, udp_interface, os, csv_parser, time, graphing_util, tkinter as tk, sys
+import os, sys, graphing_util, logger
+
+os.environ["QT_API"] = "PySide6"
+
+from PySide6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QListWidget,
+    QListWidgetItem,
+    QMainWindow,
+    QPushButton,
+    QVBoxLayout,
+    QHBoxLayout,
+    QWidget,
+    QApplication,
+    QFileDialog,
+    QLabel,
+)
+from PySide6.QtCore import Qt
+
+from pathlib import Path
+
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
+from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
+
+compareGraphs = False
+selections = 0x3F  # Clutch, Gas. Gear. Pitch, Suspension, Wheel Speed, RPM
+
+curr_pass = None
+prev_pass = None
+gloMainLabel = None
+gloPrevLabel = None
+
+Path("output_logs").mkdir(exist_ok=True)
 
 
-def graph_helper(sock, root=None, file_path=None, previous_pass=None):
-    if root is not None:
-        root.destroy()
-    udp_interface.close_udp(sock)
+def reset_paths():
+    global curr_pass, prev_pass
+    curr_pass = None
+    prev_pass = None
 
-    print("Opening Graphing Window...")
-    graphing_util.graphing_single_gui(file_path, previous_pass)
+    # Define the target directory
+    directory_path = Path("output_logs")
 
-def exit_program(sock, root):
-    root.destroy()
-    udp_interface.close_udp(sock)
-    sys.exit()
+    # 1. Get all items, filter for files only
+    files = [f for f in directory_path.iterdir() if f.is_file()]
 
-def main(previous_pass=None):
-    socket = udp_interface.init_udp()
-    areRecording = False
-    maxSpeed = 0
-    csv_parser.new_csv()
+    # 2. Sort files by modification time in descending order (newest first)
+    files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
 
-    root = tk.Tk()
+    # 3. Safely pick the second newest file
+    if len(files) >= 2:
+        curr_pass = files[0]
+        prev_pass = files[1]
+        print(f"Current file: {curr_pass.name}")
+        print(f"Full path: {curr_pass}")
+        print(f"Second newest file: {prev_pass.name}")
+        print(f"Full path: {prev_pass}")
+    elif len(files) == 1:
+        print("The directory contains only one file.")
+        curr_pass = files[0]
+        print(f"Current file: {curr_pass.name}")
+        print(f"Full path: {curr_pass}")
+    else:
+        print("The directory is empty.")
 
-    root.title("SimHub Telemetry Logger")
-    tk.Button(root, text="Start Logging", command=lambda: root.destroy()).pack(padx=10, pady=20, side=tk.LEFT)
-    tk.Button(root, text="Open Graphs", command=lambda: graph_helper(socket, root, previous_pass)).pack(padx=10, pady=20, side=tk.LEFT)
-    tk.Button(root, text="Exit", command=lambda: exit_program(socket, root)).pack(padx=10, pady=20, side=tk.LEFT)
-    root.minsize(300, 100)
-    root.mainloop()
 
-    print("Starting Telemetry Logging...")
+reset_paths()
 
-    while True:
 
-        contents = udp_interface.receive_message(socket)
-        packet = simhub_parser.parse_telemetry_packet(contents[0])
+class MainWindow(QMainWindow):
 
-        if (packet.rpm > packet.idle_rpm + 2000) and not areRecording: # type: ignore
-            areRecording = True
-            print("Started Recording " + time.strftime("%H:%M:%S"))
-            maxSpeed = 0
-            startTime = time.time()
-        
-        if (packet.rpm < packet.idle_rpm + 1000) and areRecording: # type: ignore
-            areRecording = False
-            if maxSpeed < 30:
-                print("Discarded Recording - Max Speed " + str(round(maxSpeed,2)) + " mph")
-                csv_parser.new_csv()
-            else:
-                print("Stopped Recording " + time.strftime("%H:%M:%S"))
-                file_path = csv_parser.save_csv()
-                csv_parser.new_csv()
-                graph_helper(socket, None, file_path, previous_pass)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-        if areRecording:
-            csv_parser.add_csv_row(packet)
-            maxSpeed = max(maxSpeed, packet.wheel_speed_front) # Assuming front right wheel speed is representative # type: ignore
+        # Controls Initialization
+        mainFileLabel = QLabel("Pass 1: " + str(curr_pass.name if curr_pass else "No file selected"))  # type: ignore
+        mainFileLabel.setAlignment(Qt.AlignCenter)  # type: ignore
+        compareFileLabel = QLabel("Pass 2: " + str(prev_pass.name if prev_pass else "No comparison file selected"))  # type: ignore
+        compareFileLabel.setAlignment(Qt.AlignCenter)  # type: ignore
 
-if __name__ == "__main__":
-    main()
+        global gloMainLabel, gloPrevLabel
+        gloMainLabel = mainFileLabel
+        gloPrevLabel = compareFileLabel
+
+        mainSelectButton = QPushButton("Select Main File")
+        mainSelectButton.clicked.connect(
+            lambda: self.select_file("Main", mainFileLabel)
+        )
+        compareSelectButton = QPushButton("Select Comparison File")
+        compareSelectButton.clicked.connect(
+            lambda: self.select_file("Comparison", compareFileLabel)
+        )
+
+        comparisonCheckbox = QCheckBox("Comparison Mode")
+        comparisonCheckbox.stateChanged.connect(self.toggle_comparison)
+
+        graphButton = QPushButton("Graph Data")
+        graphButton.clicked.connect(self.graph_data)
+
+        logButton = QPushButton("Log Data")
+        logButton.clicked.connect(self.log_data)
+        logButton.setMinimumHeight(100)
+
+        deleteButton = QPushButton("Delete Last Pass")
+        deleteButton.clicked.connect(self.delete_last_pass)
+        deleteButton.setStyleSheet("background-color: red; color: white")
+        #  Overall layout holding the graph and the controls
+        topLayout = QHBoxLayout()
+
+        #  Layout for the control widgets
+        controlLayout = QVBoxLayout()
+
+        #  Checkboxes for current graph shown
+        self.list_widget = QListWidget()
+        self.list_widget.setMaximumWidth(220)
+        self.list_widget.setMinimumWidth(220)
+        items = [
+            "RPM",
+            "Wheel Speed",
+            "Suspension Position",
+            "Pitch",
+            "Gear",
+            "Gas Pedal",
+            "Clutch Pedal",
+        ]
+        for item_text in items:
+            item = QListWidgetItem(item_text)
+            item.setCheckState(Qt.Unchecked if item_text == "Clutch Pedal" else Qt.Checked)  # type: ignore
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)  # type: ignore
+            self.list_widget.addItem(item)
+
+        self.list_widget.itemChanged.connect(self.update_selection)
+        controlLayout.addWidget(self.list_widget)
+
+        controlLayout.addWidget(mainFileLabel)
+        controlLayout.addWidget(mainSelectButton)
+        controlLayout.addWidget(compareFileLabel)
+        controlLayout.addWidget(compareSelectButton)
+
+        controlLayout.addWidget(comparisonCheckbox)
+        controlLayout.addWidget(graphButton)
+        controlLayout.addWidget(logButton)
+        controlLayout.addWidget(deleteButton)
+
+        #  Graph Initialization
+
+        self.canvas = FigureCanvasQTAgg(
+            graphing_util.graph_single_data(
+                graphing_util.read_csv_data(curr_pass), selections
+            )
+            if curr_pass
+            else Figure()
+        )
+        self.toolbar = NavigationToolbar(self.canvas, self)
+
+        self.graphLayout = QVBoxLayout()
+        self.graphLayout.addWidget(self.toolbar)
+        self.graphLayout.addWidget(self.canvas)
+
+        topLayout.addLayout(controlLayout)
+        topLayout.addLayout(self.graphLayout)
+
+        # Create a placeholder widget to hold our toolbar, canvas, and controls.
+        widget = QWidget()
+        widget.setLayout(topLayout)
+        self.setCentralWidget(widget)
+
+        self.showMaximized()
+
+    def toggle_comparison(self, state):
+        global compareGraphs
+        compareGraphs = not compareGraphs
+        print(f"Comparison mode toggled: {compareGraphs}")
+
+    def update_selection(self):
+        global selections
+        selections = 0x00
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            if item.checkState() == Qt.Checked:  # type: ignore
+                selections |= 1 << i
+        print(f"Selections updated: {selections:07b}")
+        updated_fig = (
+            graphing_util.graph_comparison_data(
+                graphing_util.read_csv_data(curr_pass),
+                graphing_util.read_csv_data(prev_pass),
+                selections,
+            )
+            if compareGraphs
+            else graphing_util.graph_single_data(
+                graphing_util.read_csv_data(curr_pass), selections
+            )
+        )
+        self.regraph(updated_fig)
+
+    def regraph(self, figure):
+        self.graphLayout.removeWidget(self.toolbar)
+        self.graphLayout.removeWidget(self.canvas)
+        self.toolbar.deleteLater()
+        self.canvas.deleteLater()
+
+        self.fig = figure
+        self.canvas = FigureCanvasQTAgg(self.fig)
+        self.toolbar = NavigationToolbar(self.canvas, self)
+
+        self.graphLayout.addWidget(self.toolbar)
+        self.graphLayout.addWidget(self.canvas)
+        self.canvas.draw_idle()
+
+    def graph_data(self):
+        updated_fig = (
+            graphing_util.graph_comparison_data(
+                graphing_util.read_csv_data(curr_pass),
+                graphing_util.read_csv_data(prev_pass),
+                selections,
+            )
+            if compareGraphs
+            else graphing_util.graph_single_data(
+                graphing_util.read_csv_data(curr_pass), selections
+            )
+        )
+        self.regraph(updated_fig)
+
+    def select_file(self, button, label):
+        global curr_pass, prev_pass
+        dialog = QFileDialog()
+        dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
+        dialog.setNameFilter("CSV Files (*.csv)")
+        dialog.setDirectory("output_logs")
+        if dialog.exec():
+            file_path = dialog.selectedFiles()[0]
+            if button == "Main":
+                # Handle the selected main file path
+                print(f"Main file selected: {file_path}")
+                curr_pass = Path(file_path)
+            elif button == "Comparison":
+                # Handle the selected comparison file path
+                print(f"Comparison file selected: {file_path}")
+                prev_pass = Path(file_path)
+            self.update_labels()
+
+    def log_data(self):
+        global curr_pass, prev_pass
+        prev_pass = curr_pass if curr_pass else None
+        curr_pass = Path(logger.log_pass())
+
+        self.graph_data()
+        self.update_labels()
+
+    def update_labels(self):
+        global gloMainLabel, gloPrevLabel
+        if gloMainLabel:
+            gloMainLabel.setText("Pass 1: " + str(curr_pass.name) if curr_pass else "No file selected")  # type: ignore
+        if gloPrevLabel:
+            gloPrevLabel.setText("Pass 2: " + str(prev_pass.name) if prev_pass else "No file selected")  # type: ignore
+
+    def delete_last_pass(self):
+        global curr_pass, prev_pass
+        if curr_pass:
+            curr_pass.unlink() #type: ignore
+            curr_pass = None
+        reset_paths()
+        self.update_labels()
+        self.graph_data()
+
+app = QApplication(sys.argv)
+window = MainWindow()
+
+screens = QApplication.screens()
+
+targetScreen = screens[1] if len(screens) > 1 else screens[0]
+
+screen_geo = targetScreen.availableGeometry()
+
+window.move(screen_geo.topLeft())
+
+window.show()
+
+sys.exit(app.exec())
