@@ -86,11 +86,11 @@ class MainWindow(QMainWindow):
 
         mainSelectButton = QPushButton("Select Main File")
         mainSelectButton.clicked.connect(
-            lambda: self.select_file("Main", mainFileLabel)
+            lambda: self.select_file("Main")
         )
         compareSelectButton = QPushButton("Select Comparison File")
         compareSelectButton.clicked.connect(
-            lambda: self.select_file("Comparison", compareFileLabel)
+            lambda: self.select_file("Comparison")
         )
 
         comparisonCheckbox = QCheckBox("Comparison Mode")
@@ -151,7 +151,7 @@ class MainWindow(QMainWindow):
                 graphing_util.read_csv_data(curr_pass), selections
             )
             if curr_pass
-            else Figure()
+            else Figure(facecolor='black')
         )
         self.toolbar = NavigationToolbar(self.canvas, self)
 
@@ -188,7 +188,7 @@ class MainWindow(QMainWindow):
                 graphing_util.read_csv_data(prev_pass),
                 selections,
             )
-            if compareGraphs
+            if compareGraphs and prev_pass != None
             else graphing_util.graph_single_data(
                 graphing_util.read_csv_data(curr_pass), selections
             )
@@ -216,14 +216,14 @@ class MainWindow(QMainWindow):
                 graphing_util.read_csv_data(prev_pass),
                 selections,
             )
-            if compareGraphs
+            if compareGraphs and prev_pass != None
             else graphing_util.graph_single_data(
                 graphing_util.read_csv_data(curr_pass), selections
             )
         )
         self.regraph(updated_fig)
 
-    def select_file(self, button, label):
+    def select_file(self, button):
         global curr_pass, prev_pass
         dialog = QFileDialog()
         dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
@@ -275,6 +275,8 @@ targetScreen = screens[1] if len(screens) > 1 else screens[0]
 screen_geo = targetScreen.availableGeometry()
 
 window.move(screen_geo.topLeft())
+
+window.setWindowTitle("BeamNG.Drive Drag Racing Data Logger")
 
 window.show()
 

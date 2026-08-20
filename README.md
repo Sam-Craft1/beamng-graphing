@@ -1,16 +1,16 @@
 This project is focused on taking the live telementary data from Simhub and BeamNG.Drive, and saving them to look at at a later date. I am making this because I love drag racing in BeamNG.Drive, so I want to have data to look at at a later date to improve my pass.
 
-Main Menu
-
-![Main Menu](images/mainMenu.png)
-
-Individual pass selection and graph screens
-
-<img src="images/singleGraphSelection.png" alt="Single Pass Graph Selection" width="300">
-<img src="images/singleGraph.png" alt="Single Pass Graph" width="600">
 
 
-Pass comparison selection and graph screens
+Initial starting screen with no recorded passes
 
-<img src="images/compareGraphSelection.png" alt="Comparision Graph Selection" width="300">
-<img src="images/compareGraph.png" alt="Comparision Graph" width="600">
+<img src="images/noPass.png" alt="Initial Starting Screen" width="600">
+
+One pass being shown. This is also the starting state when there are recorded passes. The most recent pass is loaded into the graph
+
+<img src="images/onePass.png" alt="One Shown Pass" width="600">
+
+Two passes being shown in comparison to each other. The passes are lined up on when the vehicle starts moving.
+
+<img src="images/twoPass_Compare.png" alt="Comparison Of Two Passes" width="600">
+
